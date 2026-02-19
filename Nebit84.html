@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Conditional Chaos Tabs</title>
+<style>
+body { margin:0; overflow:hidden; background:black; font-family:Arial,sans-serif;}
+.tab-window { position:absolute; width:150px; height:120px; border:2px solid black; box-shadow:0 0 10px black; display:flex; flex-direction:column;}
+.tab-bar { height:25px; display:flex; justify-content:space-between; align-items:center; font-size:12px; padding:0 5px; color:white;}
+.content { flex:1; display:flex; justify-content:center; align-items:center; font-size:30px; color:black;}
+.close-btn { cursor:pointer; font-weight:bold; color:red;}
+.hi-text { position:absolute; font-size:50px; font-weight:bold; color:black; pointer-events:none; user-select:none;}
+</style>
+</head>
+<body>
+
+<!-- Layered 3-second Hi audio -->
+<audio id="hi1" src="hi3s.mp3"></audio>
+<audio id="hi2" src="hi3s.mp3"></audio>
+<audio id="hi3" src="hi3s.mp3"></audio>
+<audio id="hi4" src="hi3s.mp3"></audio>
+
+<script>
+let tabs = [], baseSpeed = 2, firstClosed = false, lastTabColorChange = 0, tabColorInterval = 200, lastFlashTime = 0;
+const maxSpeed = 40, maxTabs = 50;
+let audioStarted = false;
+const audioTracks = [hi1, hi2, hi3, hi4];
+audioTracks.forEach(t=>t.volume=0.2);
+let flashBackground = false;
+
+// Random light colors for tabs
+function randomLightColor(){
+const r=200+Math.floor(Math.random()*55);
+const g=200+Math.floor(Math.random()*55);
+const b=200+Math.floor(Math.random()*55);
+return `rgb(${r},${g},${b})`;
+}
+
+// Create tab
+function createTab(x,y,dx,dy){
+if(tabs.length>=maxTabs) return;
+const tabWindow = document.createElement("div");
+tabWindow.className="tab-window";
+const tabBar = document.createElement("div");
+tabBar.className="tab-bar";
+tabBar.innerHTML='Hello <span class="close-btn">X</span>';
+const content = document.createElement("div");
+content.className="content";
+content.innerHTML="(:";
+content.style.backgroundColor=randomLightColor();
+tabWindow.appendChild(tabBar);
+tabWindow.appendChild(content);
+
+// Set initial positions
+tabWindow.x = x; tabWindow.y = y; tabWindow.dx = dx; tabWindow.dy = dy;
+tabWindow.style.left = tabWindow.x + "px";
+tabWindow.style.top = tabWindow.y + "px";
+
+document.body.appendChild(tabWindow);
+tabs.push(tabWindow);
+
+// Close button behavior
+tabBar.querySelector(".close-btn").onclick = ()=>{
+if(!firstClosed){
+firstClosed = true;
+baseSpeed = 20;
+flashBackground = true; // start flashing background
+if(!audioStarted){
+audioStarted = true;
+audioTracks.forEach((track,i)=>{
+setTimeout(()=>{
+track.loop=true;
+track.play().catch(()=>console.log("Audio blocked!"));
+}, i*50 );
+});
+}
+tabs.forEach(t=>{ t.dx=((Math.random()-0.5)*baseSpeed); t.dy=((Math.random()-0.5)*baseSpeed); });
+}
+// spawn 5 more tabs
+for(let i=0;i<5;i++){
+createTab(Math.random()*(window.innerWidth-150), Math.random()*(window.innerHeight-120), (Math.random()-0.5)*baseSpeed, (Math.random()-0.5)*baseSpeed);
+}
+document.body.removeChild(tabWindow);
+tabs = tabs.filter(t=>t!==tabWindow);
+};
+}
+
+// Initial tab — center of screen
+createTab(
+window.innerWidth/2 - 75,
+window.innerHeight/2 - 60,
+(Math.random()-0.5)*baseSpeed,
+(Math.random()-0.5)*baseSpeed
+);
+
+// Automatic tab spawn every 0.5s after first closed
+setInterval(()=>{
+if(firstClosed && tabs.length<maxTabs){
+createTab(Math.random()*(window.innerWidth-150), Math.random()*(window.innerHeight-120), (Math.random()-0.5)*baseSpeed, (Math.random()-0.5)*baseSpeed);
+}
+},500);
+
+// Increase speed by 1 every 0.5s, capped
+setInterval(()=>{
+if(firstClosed){
+tabs.forEach(t=>{
+if(Math.abs(t.dx)<maxSpeed) t.dx += Math.sign(t.dx)*1;
+if(Math.abs(t.dy)<maxSpeed) t.dy += Math.sign(t.dy)*1;
+});
+if(baseSpeed<maxSpeed) baseSpeed+=1;
+}
+},500);
+
+// Create 10 independent teleporting Hi texts
+const hiTexts = [];
+for(let i=0;i<10;i++){
+const div = document.createElement("div");
+div.className = "hi-text";
+div.innerText = "Hi (:";
+document.body.appendChild(div);
+hiTexts.push(div);
+
+// Each text teleports independently every 0.5-1s
+setInterval(()=>{
+div.style.left = Math.random()*(window.innerWidth-100) + "px";
+div.style.top = Math.random()*(window.innerHeight-50) + "px";
+}, 500 + Math.random()*500);
+}
+
+// Update loop
+function update(timestamp){
+tabs.forEach(tab=>{
+tab.x += tab.dx; tab.y += tab.dy;
+if(tab.x<=0||tab.x>=window.innerWidth-150) tab.dx*=-1;
+if(tab.y<=0||tab.y>=window.innerHeight-120) tab.dy*=-1;
+tab.style.left = tab.x + "px";
+tab.style.top = tab.y + "px";
+});
+
+if(timestamp - lastTabColorChange > tabColorInterval){
+tabs.forEach(tab=>{
+tab.querySelector(".tab-bar").style.backgroundColor = `rgb(${Math.random()*255},${Math.random()*255},${Math.random()*255})`;
+tab.querySelector(".content").style.backgroundColor = randomLightColor();
+});
+lastTabColorChange = timestamp;
+}
+
+// Flash background only if first tab was closed
+if(flashBackground && timestamp - lastFlashTime > 100){
+const r=Math.floor(Math.random()*255);
+const g=Math.floor(Math.random()*255);
+const b=Math.floor(Math.random()*255);
+document.body.style.backgroundColor = `rgb(${r},${g},${b})`;
+lastFlashTime = timestamp;
+}
+
+requestAnimationFrame(update);
+}
+
+update();
+</script>
+</body>
+</html>
